@@ -15,24 +15,36 @@ h1, h2, h3, h4 {color: white;}
 """, unsafe_allow_html=True)
 
 # =========================
-# HEADER
-# =========================
-col1, col2 = st.columns([8,1])
-
-with col1:
-    st.title("📊 SH Performance Report")
-
-with col2:
-    st.markdown("🟢 **LIVE**")
-
-# =========================
-# LOAD DATA
+# LOAD DATA FIRST (needed for date in LIVE badge)
 # =========================
 sheet_url = "https://docs.google.com/spreadsheets/d/1Fq3M3yXOb_7ZBYnyNoRLYpBps5Ra_FdGFoaVFNPPewI/export?format=csv"
 df = pd.read_csv(sheet_url)
 
 df['Date'] = pd.to_datetime(df['Date'])
 max_date = df['Date'].max()
+
+# =========================
+# HEADER WITH LIVE BADGE
+# =========================
+col1, col2 = st.columns([8,2])
+
+with col1:
+    st.title("📊 SH Performance Report")
+
+with col2:
+    st.markdown(f"""
+    <div style="
+        background-color:#0f5132;
+        color:#00ff9c;
+        padding:8px 12px;
+        border-radius:8px;
+        text-align:center;
+        font-weight:bold;
+        font-size:13px;
+    ">
+        🟢 LIVE | {max_date.date()}
+    </div>
+    """, unsafe_allow_html=True)
 
 # =========================
 # KPI CARDS
@@ -76,7 +88,7 @@ df_grouped['NC %'] = df_grouped['NC Marked'] / df_grouped['Total Shipments']
 df_grouped['Masking %'] = df_grouped['NC Validated'] / df_grouped['NC Marked']
 
 # =========================
-# DELTA ARROW FUNCTION
+# DELTA ARROW
 # =========================
 def add_arrow(val):
     if pd.isna(val): return ""
@@ -99,7 +111,6 @@ for metric in ['FASR %','FPSR %','Masking %','NC %']:
     pivot['Delta'] = pivot['D-1'] - pivot['D-2']
     pivot['Delta'] = pivot['Delta'].apply(add_arrow)
 
-    # FORMAT VALUES
     for col in order:
         pivot[col] = (pivot[col]*100).round(2).astype(str) + "%"
 
@@ -116,13 +127,13 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.write("### 🟢 Top 5")
-    top5 = top_df[['SH','FASR %']].head(5)
+    top5 = top_df[['SH','FASR %']].head(5).copy()
     top5['FASR %'] = (top5['FASR %']*100).round(2).astype(str)+"%"
     st.dataframe(top5)
 
 with col2:
     st.write("### 🔴 Bottom 5")
-    bottom5 = top_df[['SH','FASR %']].tail(5)
+    bottom5 = top_df[['SH','FASR %']].tail(5).copy()
     bottom5['FASR %'] = (bottom5['FASR %']*100).round(2).astype(str)+"%"
     st.dataframe(bottom5)
 
