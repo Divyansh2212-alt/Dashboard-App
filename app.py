@@ -15,7 +15,7 @@ h1, h2, h3, h4 {color: white;}
 """, unsafe_allow_html=True)
 
 # =========================
-# LOAD DATA FIRST (needed for date in LIVE badge)
+# LOAD DATA
 # =========================
 sheet_url = "https://docs.google.com/spreadsheets/d/1Fq3M3yXOb_7ZBYnyNoRLYpBps5Ra_FdGFoaVFNPPewI/export?format=csv"
 df = pd.read_csv(sheet_url)
@@ -24,27 +24,23 @@ df['Date'] = pd.to_datetime(df['Date'])
 max_date = df['Date'].max()
 
 # =========================
-# HEADER WITH LIVE BADGE
+# HEADER (INLINE LIVE BADGE)
 # =========================
-col1, col2 = st.columns([8,2])
-
-with col1:
-    st.title("📊 SH Performance Report")
-
-with col2:
-    st.markdown(f"""
-    <div style="
-        background-color:#0f5132;
-        color:#00ff9c;
-        padding:8px 12px;
-        border-radius:8px;
-        text-align:center;
-        font-weight:bold;
-        font-size:13px;
-    ">
-        🟢 LIVE | {max_date.date()}
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"""
+<h1>
+📊 SH Performance Report 
+<span style="
+    background-color:#0f5132;
+    color:#00ff9c;
+    padding:4px 8px;
+    border-radius:6px;
+    font-size:14px;
+    margin-left:10px;
+">
+🟢 LIVE
+</span>
+</h1>
+""", unsafe_allow_html=True)
 
 # =========================
 # KPI CARDS
