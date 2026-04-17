@@ -1,27 +1,63 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 st.set_page_config(layout="wide")
 
-st.title("📊 SH Performance Dashboard")
+# =========================
+# DARK THEME (NAVY)
+# =========================
+st.markdown("""
+<style>
+body {background-color: #0B1F3A; color: white;}
+.block-container {padding-top: 1rem;}
+h1, h2, h3, h4 {color: white;}
+</style>
+""", unsafe_allow_html=True)
 
-# ✅ READ GOOGLE SHEET (CSV FORMAT - FIXED)
+# =========================
+# HEADER
+# =========================
+col1, col2 = st.columns([8,1])
+
+with col1:
+    st.title("📊 SH Performance Report")
+
+with col2:
+    st.markdown("🟢 **LIVE**")
+
+# =========================
+# LOAD DATA
+# =========================
 sheet_url = "https://docs.google.com/spreadsheets/d/1Fq3M3yXOb_7ZBYnyNoRLYpBps5Ra_FdGFoaVFNPPewI/export?format=csv"
 df = pd.read_csv(sheet_url)
 
-# ✅ Convert Date
 df['Date'] = pd.to_datetime(df['Date'])
-
-# ✅ Get latest date (D-1 = MAX DATE)
 max_date = df['Date'].max()
 
-# ✅ Create Date Category (D-1 to D-7)
+# =========================
+# TOP KPI CARDS
+# =========================
+latest_df = df[df['Date'] == max_date]
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Total SH", latest_df['SH'].nunique())
+col2.metric("Total SZM", latest_df['SZM'].nunique())
+col3.metric("Total Hubs", latest_df['Hub'].nunique())
+
+# =========================
+# DATE CATEGORY
+# =========================
 df['Date Category'] = (max_date - df['Date']).dt.days
 df = df[(df['Date Category'] >= 0) & (df['Date Category'] <= 6)]
-
 df['Date Category'] = "D-" + (df['Date Category'] + 1).astype(str)
 
-# ✅ GROUP DATA (SH LEVEL)
+order = ['D-1','D-2','D-3','D-4','D-5','D-6','D-7']
+
+# =========================
+# GROUP SH
+# =========================
 df_grouped = df.groupby(['SH', 'Date Category']).agg({
     'FASR Num':'sum',
     'FASR Den':'sum',
@@ -32,33 +68,69 @@ df_grouped = df.groupby(['SH', 'Date Category']).agg({
     'NC Validated':'sum'
 }).reset_index()
 
-# ✅ METRICS
+# Metrics
 df_grouped['FASR %'] = df_grouped['FASR Num'] / df_grouped['FASR Den']
 df_grouped['FPSR %'] = df_grouped['FPSR Num'] / df_grouped['FPSR Den']
 df_grouped['NC %'] = df_grouped['NC Marked'] / df_grouped['Total Shipments']
 df_grouped['Masking %'] = df_grouped['NC Validated'] / df_grouped['NC Marked']
 
+# =========================
+# FUNCTION FOR DELTA ARROW
+# =========================
+def add_arrow(val):
+    if pd.isna(val): return ""
+    if val > 0: return f"↑ {val:.2%}"
+    elif val < 0: return f"↓ {abs(val):.2%}"
+    else: return f"{val:.2%}"
+
+# =========================
+# SH TABLES
+# =========================
 st.subheader("SH Level Performance")
 
-# ✅ SORT ORDER FIX (D-1 to D-7)
-order = ['D-1','D-2','D-3','D-4','D-5','D-6','D-7']
-
-for metric in ['FASR %','FPSR %','NC %','Masking %']:
+for metric in ['FASR %','FPSR %','Masking %','NC %']:
+    
     st.write(f"### {metric}")
     
     pivot = df_grouped.pivot(index='SH', columns='Date Category', values=metric)
     pivot = pivot[order]
 
-    # ✅ DELTA (D-1 - D-2)
     pivot['Delta'] = pivot['D-1'] - pivot['D-2']
+    pivot['Delta Arrow'] = pivot['Delta'].apply(add_arrow)
 
-    st.dataframe(pivot.style.format("{:.2%}"))
+    # COLOR LOGIC
+    if metric == 'NC %':
+        cmap = "RdYlGn_r"   # reverse for NC
+    else:
+        cmap = "RdYlGn"
+
+    st.dataframe(
+        pivot.style
+        .format("{:.2%}", subset=order)
+        .background_gradient(cmap=cmap, subset=order)
+    )
+
+# =========================
+# TOP / WORST PERFORMERS
+# =========================
+st.subheader("🏆 Top / Worst Performers (FASR D-1)")
+
+top_df = df_grouped[df_grouped['Date Category']=='D-1'].sort_values('FASR %', ascending=False)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write("### 🟢 Top 5")
+    st.dataframe(top_df[['SH','FASR %']].head(5).style.format("{:.2%}"))
+
+with col2:
+    st.write("### 🔴 Bottom 5")
+    st.dataframe(top_df[['SH','FASR %']].tail(5).style.format("{:.2%}"))
 
 # =========================
 # SZM LEVEL
 # =========================
-
-st.subheader("SZM Level")
+st.subheader("SZM Level Performance")
 
 sh_selected = st.selectbox("Select SH", df['SH'].unique())
 
@@ -79,13 +151,23 @@ df_szm_group['FPSR %'] = df_szm_group['FPSR Num'] / df_szm_group['FPSR Den']
 df_szm_group['NC %'] = df_szm_group['NC Marked'] / df_szm_group['Total Shipments']
 df_szm_group['Masking %'] = df_szm_group['NC Validated'] / df_szm_group['NC Marked']
 
-for metric in ['FASR %','FPSR %','NC %','Masking %']:
+for metric in ['FASR %','FPSR %','Masking %','NC %']:
+    
     st.write(f"### {metric}")
     
     pivot = df_szm_group.pivot(index='SZM', columns='Date Category', values=metric)
     pivot = pivot[order]
 
-    # ✅ DELTA
     pivot['Delta'] = pivot['D-1'] - pivot['D-2']
+    pivot['Delta Arrow'] = pivot['Delta'].apply(add_arrow)
 
-    st.dataframe(pivot.style.format("{:.2%}"))
+    if metric == 'NC %':
+        cmap = "RdYlGn_r"
+    else:
+        cmap = "RdYlGn"
+
+    st.dataframe(
+        pivot.style
+        .format("{:.2%}", subset=order)
+        .background_gradient(cmap=cmap, subset=order)
+    )
