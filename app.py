@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
 st.set_page_config(layout="wide")
 
 # =========================
-# DARK THEME (NAVY)
+# DARK THEME
 # =========================
 st.markdown("""
 <style>
@@ -36,7 +35,7 @@ df['Date'] = pd.to_datetime(df['Date'])
 max_date = df['Date'].max()
 
 # =========================
-# TOP KPI CARDS
+# KPI CARDS
 # =========================
 latest_df = df[df['Date'] == max_date]
 
@@ -68,14 +67,16 @@ df_grouped = df.groupby(['SH', 'Date Category']).agg({
     'NC Validated':'sum'
 }).reset_index()
 
-# Metrics
+# =========================
+# METRICS
+# =========================
 df_grouped['FASR %'] = df_grouped['FASR Num'] / df_grouped['FASR Den']
 df_grouped['FPSR %'] = df_grouped['FPSR Num'] / df_grouped['FPSR Den']
 df_grouped['NC %'] = df_grouped['NC Marked'] / df_grouped['Total Shipments']
 df_grouped['Masking %'] = df_grouped['NC Validated'] / df_grouped['NC Marked']
 
 # =========================
-# FUNCTION FOR DELTA ARROW
+# DELTA ARROW FUNCTION
 # =========================
 def add_arrow(val):
     if pd.isna(val): return ""
@@ -84,7 +85,7 @@ def add_arrow(val):
     else: return f"{val:.2%}"
 
 # =========================
-# SH TABLES
+# SH LEVEL
 # =========================
 st.subheader("SH Level Performance")
 
@@ -96,22 +97,16 @@ for metric in ['FASR %','FPSR %','Masking %','NC %']:
     pivot = pivot[order]
 
     pivot['Delta'] = pivot['D-1'] - pivot['D-2']
-    pivot['Delta Arrow'] = pivot['Delta'].apply(add_arrow)
+    pivot['Delta'] = pivot['Delta'].apply(add_arrow)
 
-    # COLOR LOGIC
-    if metric == 'NC %':
-        cmap = "RdYlGn_r"   # reverse for NC
-    else:
-        cmap = "RdYlGn"
+    # FORMAT VALUES
+    for col in order:
+        pivot[col] = (pivot[col]*100).round(2).astype(str) + "%"
 
-    st.dataframe(
-        pivot.style
-        .format("{:.2%}", subset=order)
-        .background_gradient(cmap=cmap, subset=order)
-    )
+    st.dataframe(pivot)
 
 # =========================
-# TOP / WORST PERFORMERS
+# TOP / WORST
 # =========================
 st.subheader("🏆 Top / Worst Performers (FASR D-1)")
 
@@ -121,11 +116,15 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.write("### 🟢 Top 5")
-    st.dataframe(top_df[['SH','FASR %']].head(5).style.format("{:.2%}"))
+    top5 = top_df[['SH','FASR %']].head(5)
+    top5['FASR %'] = (top5['FASR %']*100).round(2).astype(str)+"%"
+    st.dataframe(top5)
 
 with col2:
     st.write("### 🔴 Bottom 5")
-    st.dataframe(top_df[['SH','FASR %']].tail(5).style.format("{:.2%}"))
+    bottom5 = top_df[['SH','FASR %']].tail(5)
+    bottom5['FASR %'] = (bottom5['FASR %']*100).round(2).astype(str)+"%"
+    st.dataframe(bottom5)
 
 # =========================
 # SZM LEVEL
@@ -159,15 +158,9 @@ for metric in ['FASR %','FPSR %','Masking %','NC %']:
     pivot = pivot[order]
 
     pivot['Delta'] = pivot['D-1'] - pivot['D-2']
-    pivot['Delta Arrow'] = pivot['Delta'].apply(add_arrow)
+    pivot['Delta'] = pivot['Delta'].apply(add_arrow)
 
-    if metric == 'NC %':
-        cmap = "RdYlGn_r"
-    else:
-        cmap = "RdYlGn"
+    for col in order:
+        pivot[col] = (pivot[col]*100).round(2).astype(str) + "%"
 
-    st.dataframe(
-        pivot.style
-        .format("{:.2%}", subset=order)
-        .background_gradient(cmap=cmap, subset=order)
-    )
+    st.dataframe(pivot)
